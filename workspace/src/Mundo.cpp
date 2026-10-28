@@ -4,12 +4,17 @@
 #include <fstream>
 #include "Mundo.h"
 #include "glut.h"
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
 
+//P2 2810
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+//#include <iostream.h>
 //////////////////////////////////////////////////////////////////////
 // Construction/Destruction
 //////////////////////////////////////////////////////////////////////
@@ -21,7 +26,8 @@ CMundo::CMundo()
 
 CMundo::~CMundo()
 {
-
+if(fd_FIFO>=0)
+{close(fd_FIFO);}
 }
 
 void CMundo::InitGL()
@@ -135,6 +141,18 @@ void CMundo::OnTimer(int value)
 		esfera.velocidad.x=2+2*rand()/(float)RAND_MAX;
 		esfera.velocidad.y=2+2*rand()/(float)RAND_MAX;
 		puntos2++;
+		// Enviar datos al logger cuando anota el Jugador 2
+		char msg[100];
+		sprintf(msg, "Jugador 2 marca 1 punto, lleva un total de %d puntos.\n", puntos2);
+		if (fd_FIFO >= 0) {
+			write(fd_FIFO, msg, strlen(msg));
+		}
+
+		// Terminar al llegar a 3 puntos
+		if (puntos2 >= 3) {
+			if (fd_FIFO >= 0) close(fd_FIFO);
+			exit(0);
+		} 
 	}
 
 	if(fondo_dcho.Rebota(esfera))
@@ -144,6 +162,18 @@ void CMundo::OnTimer(int value)
 		esfera.velocidad.x=-2-2*rand()/(float)RAND_MAX;
 		esfera.velocidad.y=-2-2*rand()/(float)RAND_MAX;
 		puntos1++;
+		// Enviar datos al logger cuando anota el Jugador 2
+		char msg[100];
+		sprintf(msg, "Jugador 1 marca 1 punto, lleva un total de %d puntos.\n", puntos1);
+		if (fd_FIFO >= 0) {
+			write(fd_FIFO, msg, strlen(msg));
+		}
+
+		// erminar al llegar a 3 puntos
+		if (puntos1 >= 3) {
+			if (fd_FIFO >= 0) close(fd_FIFO);
+			exit(0);
+		} 
 	}
 
 }
@@ -192,4 +222,13 @@ void CMundo::Init()
 	jugador2.g=0;
 	jugador2.x1=6;jugador2.y1=-1;
 	jugador2.x2=6;jugador2.y2=1;
+	
+	puntos1=0;
+	puntos2=0;
+	
+	//Abrir la tuberia en modo escritura
+	fd_FIFO=open("/tmp/FIFO_tenis",O_WRONLY);
+	if (fd_FIFO<0){
+	perror("Error al abrir la FIFO desde tenis(recuerda ejecutar ./logger primero)");
+	}
 }

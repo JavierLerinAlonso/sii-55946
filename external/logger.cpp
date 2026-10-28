@@ -10,24 +10,32 @@ int main(int argc, char **argv) {
     int fd;
     char buffer[1024];
 
-    // borrar FIFO por si existiera previamente
-    unlink(X1);
+    // X1: Borrar FIFO por si existiera previamente
+    unlink("/tmp/FIFO_tenis");
 
-    /* crear el FIFO */
-    if (mkfifo(X2)<0) {
+    //X2: Crear el FIFO con permisos de lectura y escritura (0666)
+    if (mkfifo("/tmp/FIFO_tenis", 0666) < 0) {
         perror("No puede crearse el FIFO");
         return(1);
     }
-    /* Abrir el FIFO */
-    if (X3) {
+
+    /* X3: Abrir el FIFO en modo solo lectura */
+    if ((fd = open("/tmp/FIFO_tenis", O_RDONLY)) < 0) {
         perror("No puede abrirse el FIFO");
         return(1);
     }
-    /* Leer de la FIFO */
-    while (X4) {
-	// X5: Imprimir el texto en la pantalla
+
+    //X4 y X5: Leer de la FIFO e imprimir en pantalla 
+    // Cuando el juego 'tenis' cierre la tubería al terminar, read() devolverá 0 y el bucle finalizará solo.
+    int n;
+    while ((n = read(fd, buffer, sizeof(buffer) - 1)) > 0) {
+        buffer[n] = '\0'; // Aseguramos el final de cadena
+        printf("%s", buffer);
+        fflush(stdout);
     }
-    close(X5);
-    unlink(X6);
+
+    //X5 y X6: Cerrar descriptor y eliminar el archivo FIFO
+    close(fd);
+    unlink("/tmp/FIFO_tenis");
     return(0);
 }
