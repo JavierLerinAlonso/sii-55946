@@ -14,7 +14,10 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+
 //#include <iostream.h>
+//P3 1111
+#include <sys/mman.h>
 //////////////////////////////////////////////////////////////////////
 // Construction/Destruction
 //////////////////////////////////////////////////////////////////////
@@ -121,6 +124,17 @@ void CMundo::OnDraw()
 
 void CMundo::OnTimer(int value)
 {	
+	// Vamos a actualizar la memoria compartida y aplicar acción del bot
+	if (datos_mem != NULL && datos_mem != MAP_FAILED) {
+		datos_mem->esfera = esfera;
+		datos_mem->raqueta1 = jugador1;
+
+		if (datos_mem->accion == 1) {
+			OnKeyboardDown('w', 0, 0);
+		} else if (datos_mem->accion == -1) {
+			OnKeyboardDown('s', 0, 0);
+		}
+	}
 	jugador1.Mueve(0.025f);
 	jugador2.Mueve(0.025f);
 	esfera.Mueve(0.025f);
@@ -230,5 +244,19 @@ void CMundo::Init()
 	fd_FIFO=open("/tmp/FIFO_tenis",O_WRONLY);
 	if (fd_FIFO<0){
 	perror("Error al abrir la FIFO desde tenis(recuerda ejecutar ./logger primero)");
+	}
+	// Creamos y proyectamos el fichero en memoria para el BOT
+	int fd_mem = open("/tmp/mem_tenis", O_CREAT | O_RDWR, 0666);
+	if (fd_mem < 0) {
+		perror("Error al crear el archivo de memoria compartida");
+	} else {
+		ftruncate(fd_mem, sizeof(DatosMemCompartida));
+		datos_mem = (DatosMemCompartida*)mmap(NULL, sizeof(DatosMemCompartida), PROT_READ | PROT_WRITE, MAP_SHARED, fd_mem, 0);
+		close(fd_mem);
+		if (datos_mem != MAP_FAILED) {
+			datos_mem->esfera = esfera;
+			datos_mem->raqueta1 = jugador1;
+			datos_mem->accion = 0;
+		}
 	}
 }

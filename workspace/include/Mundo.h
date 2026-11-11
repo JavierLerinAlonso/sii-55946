@@ -14,18 +14,19 @@
 
 #include "Esfera.h"
 #include "Raqueta.h"
+#include "DatosMemCompartida.h"
 
-class CMundo  
+class CMundo
 {
 public:
 	void Init();
 	CMundo();
-	virtual ~CMundo();	
-	
-	void InitGL();	
+	virtual ~CMundo();
+
+	void InitGL();
 	void OnKeyboardDown(unsigned char key, int x, int y);
 	void OnTimer(int value);
-	void OnDraw();	
+	void OnDraw();
 
 	Esfera esfera;
 	std::vector<Plano> paredes;
@@ -37,6 +38,7 @@ public:
 	int puntos1;
 	int puntos2;
 	int fd_FIFO;
+	DatosMemCompartida* datos_mem;//<--Puntero a la memoria compartida
 };
 
 #endif // !defined(AFX_MUNDO_H__9510340A_3D75_485F_93DC_302A43B8039A__INCLUDED_)
