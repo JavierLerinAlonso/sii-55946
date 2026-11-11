@@ -30,10 +30,15 @@ int main(int argc, char* argv[])
 	}
 	close(fd);
 	dat = (DatosMemCompartida*)direccion;
-
+        dat->fin_juego=0;
 	while(1)
 	{
 		usleep(25000);
+		if(dat->fin_juego==1){
+		printf("El juego ha finalizado y el bot ha terminado.\n");
+		break;
+	      
+		}
 		// X3: Lógica del bot comparando la altura (Y) de la esfera y el centro de raqueta1
 		float centro_raqueta = (dat->raqueta1.y1 + dat->raqueta1.y2) / 2.0f;
 

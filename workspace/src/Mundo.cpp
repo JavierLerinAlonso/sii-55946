@@ -128,7 +128,6 @@ void CMundo::OnTimer(int value)
 	if (datos_mem != NULL && datos_mem != MAP_FAILED) {
 		datos_mem->esfera = esfera;
 		datos_mem->raqueta1 = jugador1;
-
 		if (datos_mem->accion == 1) {
 			OnKeyboardDown('w', 0, 0);
 		} else if (datos_mem->accion == -1) {
@@ -165,6 +164,8 @@ void CMundo::OnTimer(int value)
 		// Terminar al llegar a 3 puntos
 		if (puntos2 >= 3) {
 			if (fd_FIFO >= 0) close(fd_FIFO);
+			if (datos_mem !=NULL)datos_mem->fin_juego=1;
+			usleep(50000);
 			exit(0);
 		} 
 	}
@@ -183,9 +184,11 @@ void CMundo::OnTimer(int value)
 			write(fd_FIFO, msg, strlen(msg));
 		}
 
-		// erminar al llegar a 3 puntos
+		// Terminar al llegar a 3 puntos
 		if (puntos1 >= 3) {
 			if (fd_FIFO >= 0) close(fd_FIFO);
+                        if (datos_mem !=NULL)datos_mem->fin_juego=1;
+                        usleep(50000);
 			exit(0);
 		} 
 	}
@@ -257,6 +260,7 @@ void CMundo::Init()
 			datos_mem->esfera = esfera;
 			datos_mem->raqueta1 = jugador1;
 			datos_mem->accion = 0;
+			datos_mem->fin_juego=0;
 		}
 	}
 }
