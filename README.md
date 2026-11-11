@@ -17,7 +17,7 @@ David Alvarez Sanchez
 ## Funcionalidades desarrolladas:
 - Implementado proceso logger mediante tuberías con nombre (FIFO) 
 - Finalización a los 3 puntos
-- 
+
 # Práctica 3 - Sistemas Informáticos Industriales
 Javier Lerin Alonso Miercoles 11:30-13:30
 David Alvarez Sanchez 
