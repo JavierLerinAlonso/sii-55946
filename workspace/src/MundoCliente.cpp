@@ -2,7 +2,7 @@
 //
 //////////////////////////////////////////////////////////////////////
 #include <fstream>
-#include "Mundo.h"
+#include "MundoCliente.h"
 #include "glut.h"
 #include <stdlib.h>
 #include <stdio.h>
@@ -24,13 +24,17 @@
 
 CMundo::CMundo()
 {
+	fd_FIFO_teclas= -1;
+	fd_FIFO_coords= -1;
+	datos_mem= NULL;
 	Init();
 }
 
 CMundo::~CMundo()
 {
-if(fd_FIFO>=0)
-{close(fd_FIFO);}
+if(fd_FIFO_coords >= 0) close (fd_FIFO_coords);
+if(fd_FIFO_teclas >= 0) close (fd_FIFO_teclas);
+unlink("/tmp/FIFO_teclas");
 }
 
 void CMundo::InitGL()
@@ -124,7 +128,28 @@ void CMundo::OnDraw()
 
 void CMundo::OnTimer(int value)
 {	
-	// Vamos a actualizar la memoria compartida y aplicar acción del bot
+	//Leer coordenadas y puntos del servidor
+	char cad[200];
+	int n = read(fd_FIFO_coords, cad, sizeof(cad));
+	if (n <= 0) {
+		// El servidor terminó (3 puntos): avisar al bot y cerrar
+		if (datos_mem != NULL && datos_mem != MAP_FAILED) {
+			datos_mem->fin_juego = 1;
+		}
+		usleep(50000);
+		if (fd_FIFO_coords >= 0) close(fd_FIFO_coords);
+		if (fd_FIFO_teclas >= 0) close(fd_FIFO_teclas);
+		unlink("/tmp/FIFO_teclas");
+		exit(0);
+	}
+
+	sscanf(cad, "%f %f %f %f %f %f %f %f %f %f %d %d",
+		&esfera.centro.x, &esfera.centro.y,
+		&jugador1.x1, &jugador1.y1, &jugador1.x2, &jugador1.y2,
+		&jugador2.x1, &jugador2.y1, &jugador2.x2, &jugador2.y2,
+		&puntos1, &puntos2);
+
+	//Actualizar memoria compartida y enviar acción del bot al servidor
 	if (datos_mem != NULL && datos_mem != MAP_FAILED) {
 		datos_mem->esfera = esfera;
 		datos_mem->raqueta1 = jugador1;
@@ -134,90 +159,27 @@ void CMundo::OnTimer(int value)
 			OnKeyboardDown('s', 0, 0);
 		}
 	}
-	jugador1.Mueve(0.025f);
-	jugador2.Mueve(0.025f);
-	esfera.Mueve(0.025f);
-	int i;
-	for(i=0;i<paredes.size();i++)
-	{
-		paredes[i].Rebota(esfera);
-		paredes[i].Rebota(jugador1);
-		paredes[i].Rebota(jugador2);
-	}
-
-	jugador1.Rebota(esfera);
-	jugador2.Rebota(esfera);
-	if(fondo_izq.Rebota(esfera))
-	{
-		esfera.centro.x=0;
-		esfera.centro.y=rand()/(float)RAND_MAX;
-		esfera.velocidad.x=2+2*rand()/(float)RAND_MAX;
-		esfera.velocidad.y=2+2*rand()/(float)RAND_MAX;
-		puntos2++;
-		// Enviar datos al logger cuando anota el Jugador 2
-		char msg[100];
-		sprintf(msg, "Jugador 2 marca 1 punto, lleva un total de %d puntos.\n", puntos2);
-		if (fd_FIFO >= 0) {
-			write(fd_FIFO, msg, strlen(msg));
-		}
-
-		// Terminar al llegar a 3 puntos
-		if (puntos2 >= 3) {
-			if (fd_FIFO >= 0) close(fd_FIFO);
-			if (datos_mem !=NULL)datos_mem->fin_juego=1;
-			usleep(50000);
-			exit(0);
-		} 
-	}
-
-	if(fondo_dcho.Rebota(esfera))
-	{
-		esfera.centro.x=0;
-		esfera.centro.y=rand()/(float)RAND_MAX;
-		esfera.velocidad.x=-2-2*rand()/(float)RAND_MAX;
-		esfera.velocidad.y=-2-2*rand()/(float)RAND_MAX;
-		puntos1++;
-		// Enviar datos al logger cuando anota el Jugador 2
-		char msg[100];
-		sprintf(msg, "Jugador 1 marca 1 punto, lleva un total de %d puntos.\n", puntos1);
-		if (fd_FIFO >= 0) {
-			write(fd_FIFO, msg, strlen(msg));
-		}
-
-		// Terminar al llegar a 3 puntos
-		if (puntos1 >= 3) {
-			if (fd_FIFO >= 0) close(fd_FIFO);
-                        if (datos_mem !=NULL)datos_mem->fin_juego=1;
-                        usleep(50000);
-			exit(0);
-		} 
-	}
-
 }
 
 void CMundo::OnKeyboardDown(unsigned char key, int x, int y)
 {
-	switch(key)
-	{
-//	case 'a':jugador1.velocidad.x=-1;break;
-//	case 'd':jugador1.velocidad.x=1;break;
-	case 's':jugador1.velocidad.y=-4;break;
-	case 'w':jugador1.velocidad.y=4;break;
-	case 'l':jugador2.velocidad.y=-4;break;
-	case 'o':jugador2.velocidad.y=4;break;
-
+        char cad[100];
+	memset(cad, 0, sizeof(cad));
+	sprintf(cad, "%c", key);
+	if (fd_FIFO_teclas >= 0) {
+		write(fd_FIFO_teclas, cad, sizeof(cad));
 	}
 }
 
 void CMundo::Init()
 {
 	Plano p;
-//pared inferior
+	// pared inferior
 	p.x1=-7;p.y1=-5;
 	p.x2=7;p.y2=-5;
 	paredes.push_back(p);
 
-//superior
+	// superior
 	p.x1=-7;p.y1=5;
 	p.x2=7;p.y2=5;
 	paredes.push_back(p);
@@ -230,25 +192,36 @@ void CMundo::Init()
 	fondo_dcho.x1=7;fondo_dcho.y1=-5;
 	fondo_dcho.x2=7;fondo_dcho.y2=5;
 
-	//a la izq
+	// a la izq
 	jugador1.g=0;
 	jugador1.x1=-6;jugador1.y1=-1;
 	jugador1.x2=-6;jugador1.y2=1;
 
-	//a la dcha
+	// a la dcha
 	jugador2.g=0;
 	jugador2.x1=6;jugador2.y1=-1;
 	jugador2.x2=6;jugador2.y2=1;
 	
 	puntos1=0;
 	puntos2=0;
-	
-	//Abrir la tuberia en modo escritura
-	fd_FIFO=open("/tmp/FIFO_tenis",O_WRONLY);
-	if (fd_FIFO<0){
-	perror("Error al abrir la FIFO desde tenis(recuerda ejecutar ./logger primero)");
+
+	// 1. Crear FIFO de teclas antes de abrir FIFO_coords
+	unlink("/tmp/FIFO_teclas");
+	mkfifo("/tmp/FIFO_teclas", 0666);
+
+	// 2. Abrir FIFO de coordenadas en modo lectura (desde servidor)
+	fd_FIFO_coords = open("/tmp/FIFO_coords", O_RDONLY);
+	if (fd_FIFO_coords < 0) {
+		perror("Error al abrir FIFO_coords (lanza ./servidor primero)");
 	}
-	// Creamos y proyectamos el fichero en memoria para el BOT
+
+	// 3. Abrir FIFO de teclas en modo escritura (hacia servidor)
+	fd_FIFO_teclas = open("/tmp/FIFO_teclas", O_WRONLY);
+	if (fd_FIFO_teclas < 0) {
+		perror("Error al abrir FIFO_teclas");
+	}
+
+	// 4. Creamos y proyectamos el fichero en memoria para el BOT
 	int fd_mem = open("/tmp/mem_tenis", O_CREAT | O_RDWR, 0666);
 	if (fd_mem < 0) {
 		perror("Error al crear el archivo de memoria compartida");
@@ -260,7 +233,7 @@ void CMundo::Init()
 			datos_mem->esfera = esfera;
 			datos_mem->raqueta1 = jugador1;
 			datos_mem->accion = 0;
-			datos_mem->fin_juego=0;
+			datos_mem->fin_juego = 0;
 		}
 	}
 }

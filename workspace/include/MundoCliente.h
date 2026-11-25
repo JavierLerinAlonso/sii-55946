@@ -37,7 +37,8 @@ public:
 
 	int puntos1;
 	int puntos2;
-	int fd_FIFO;
+	int fd_FIFO_coords;
+	int fd_FIFO_teclas;
 	DatosMemCompartida* datos_mem;//<--Puntero a la memoria compartida
 };
 
